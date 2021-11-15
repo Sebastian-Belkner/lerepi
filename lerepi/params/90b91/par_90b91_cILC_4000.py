@@ -28,7 +28,7 @@ TEMP =  '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90.91/cILC2021_90.%s_lmax
 
 
 #TODO
-BMARG_LIBDIR  = '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90.91/' # 095_fgtol1e300/template_matrix' 
+BMARG_LIBDIR  = '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90b91/' # 095_fgtol1e300/template_matrix' 
 BMARG_LCUT = 200
 BMARG_CENTRALNLEV_UKAMIN = 0.350500 # central pol noise level in map used to build the (TniT) inverse matrix
 THIS_CENTRALNLEV_UKAMIN = 0.42# central pol noise level in this pameter file noise sims. The template matrix willbe rescaled
