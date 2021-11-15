@@ -1,5 +1,5 @@
 import sys
-import lerepi.params.90b91 as par
+import lerepi.params.90b91.par_90b91_cILC_4000 as par
 
 # sim_id = int(sys.argv[1])
 for sim_id in range(200):

@@ -7,7 +7,6 @@ import os, sys
 import numpy as np
 import healpy as hp
 
-from cmbs4 import sims_flau
 
 from plancklens.filt import  filt_util, filt_cinv
 from plancklens import qest, qresp, utils
@@ -20,7 +19,7 @@ from itercurv.iterators import cs_iterator
 from itercurv.filt import utils_cinv_p
 
 from itercurv.remapping.utils import alm_copy
-from cmbs4 import sims_08b
+from lerepi import sims_90
 
 
 fg = '91'
