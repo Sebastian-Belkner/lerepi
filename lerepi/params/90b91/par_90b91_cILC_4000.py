@@ -11,8 +11,8 @@ import healpy as hp
 from plancklens.filt import  filt_util, filt_cinv
 from plancklens import qest, qresp, utils
 from plancklens.qcinv import cd_solve, opfilt_pp
-import itercurv
 
+import itercurv
 from itercurv import healpix_hack as hph
 from itercurv.filt import opfilt_ee_wl
 from itercurv.iterators import cs_iterator
@@ -23,7 +23,7 @@ from lerepi import sims_90
 
 
 fg = '91'
-TEMP =  '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90.91/cILC2021_90.%s_lmax4000/'%fg
+TEMP =  '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90.91/cILC2021_90b%s_lmax4000/'%fg
 
 
 #TODO
