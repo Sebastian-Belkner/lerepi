@@ -86,7 +86,7 @@ cls_grad = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_gradlensedCls
 cls_weights_qe =  utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 
 transf = hp.gauss_beam(beam / 180. / 60. * np.pi, lmax=lmax_transf)
-sims = sims_08b.caterinaILC_May12(fg)
+sims = sims_90.caterinaILC_May12(fg)
 #sims_cmb = sims_06b.simlib_cmbonly(freq)
 
 #------- For sep_TP
