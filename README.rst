@@ -1,7 +1,10 @@
-# lerepi
+lerepi
+===========
+
 CMB lensing reconstruction pipelines for various experiments (CMB-S4, PICO)
 
-# Installation
+Installation
+=================
 
 git clone and then,
 
@@ -12,7 +15,8 @@ git clone and then,
 `-e` only if you are a developer, of course.
 
 
-# Pipelines
+Pipelines
+=============
 
 Individual pipelines are found as a distinct branch whith the following convention,
     **p/<experiment>**,
@@ -20,6 +24,7 @@ where **p** stands for pipeline, and experiment is the identifier of the **exper
 
 
 
-## p/pico branch
+p/pico branch
+-----------------
 
 Parameter file and scripts to run iterative lensing reconstruction on PICO simulation data
