@@ -7,7 +7,6 @@ import numpy as np
 import plancklens
 from plancklens import utils
 import healpy as hp
-import cmbs4
 
 #TODO
 def get_beam(freq):
