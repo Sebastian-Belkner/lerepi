@@ -8,15 +8,23 @@ import plancklens
 from plancklens import utils
 import healpy as hp
 
-#TODO
-def get_beam(freq):
-    assert 0, "To be implemented"
-    return {20:11.0, 27:8.4, 39:5.8, 93:2.5, 145:1.6, 225:1.1, 278:1.}[freq]
 
-#TODO
+def get_beam(freq):
+
+    return {21: 38.4, 25: 32.0,  30: 28.3,  36: 23.6,  43: 22.2,  52: 18.4,  
+        62: 12.8,  75: 10.7,  90: 9.5,  108: 7.9,  129: 7.4,  155: 6.2, 
+        186: 4.3,  223: 3.6,  268: 3.2,  321: 2.6,  385: 2.5,  462: 2.1, 
+        555: 1.5,  666: 1.3,  799: 1.1 
+    }[freq]
+
+
 def get_nlevp(freq):
-    assert 0, "To be implemented"
-    return {20:13.6, 27:6.5, 39:4.15, 93:0.63, 145:0.59, 225:1.83, 278:4.34}[freq]
+                      
+    return {21: 16.9, 25: 13.0,  30: 8.7,  36: 5.6,  43: 5.6,  52: 4.0,  
+        62: 3.8, 75: 3.0, 90: 2.0, 108: 1.6, 129: 1.5,  155: 1.3, 
+        186: 2.8,  223: 3.2,  268: 2.2,  321: 3.0,  385: 3.2,  462: 6.4, 
+        555: 32.4,  666: 125,  799: 740
+    }[freq]
 
 
 def get_zbounds(hits_ratio=np.inf):
@@ -49,26 +57,31 @@ def get_fidcls():
 
 
 class ILC_Clem_Nov21:
-    """ILC maps from C Umilta on s06b May 12 2021
+    """ILC maps from Clem on 90.91 Nov 2021
 
-        These maps are multiplied with the weights used for the ILC
+        These maps are multiplied with the weights used for the ILC #TODO
 
     """
-    #TODO paths
+
+
     def __init__(self, fg, facunits=1e6, rhitsi=True):
-        assert 0, "To be implemented"
         assert fg in ['91']
         self.facunits = facunits
         self.fg = fg
-        p =  '/project/projectdirs/pico/reanalysis/compsepmaps' # 08b.%s_umilta_210511/'%fg
-        self.path = p + '/cmbs4_08b' + fg + '_cmb_b02_ellmin30_ellmax4050_map_2048_%04d.fits' # CMB + noise
-        self.path_noise =   p + '/cmbs4_08b' + fg + '_noise_b02_ellmin30_ellmax4050_map_2048_%04d.fits'
-        self.rhitsi=rhitsi
-        self.p2mask = p + '/ILC_mask_08b_smooth_30arcmin.fits'
+
+        p = "/project/projectdirs/pico/reanalysis/compsepmaps"
+        self.path = p + '/pico_90_combined_map_2048_mc_%04d.fits'
+        self.path_noise =   p + '/pico_90_noise_combined_map_2048_mc_%04d.fits'
+        # p =  '/project/projectdirs/pico/data_xx.yy/90.00' # 08b.%s_umilta_210511/'%fg
+        # self.path = p + '/pico_90_llcdm_AL0p03_f021_b38_ellmin00_map_2048_mc_%04d.fits' #TODO # CMB + noise 
+        # self.path_noise =   p + '/pico_90_noise_f090_b10_ellmin00_map_2048_mc_%04d.fits' #TODO
+        
+        self.rhitsi = rhitsi
+        self.p2mask = "/project/projectdirs/pico/reanalysis/compsepmaps/gnilc/small_mask_gnilc_90p91_fsky0-024.fits" #TODO
 
 
     def hashdict(self):
-        ret = {'rhits':self.rhitsi, 'sim_lib':'cmbs4_08b_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}
+        ret = {'rhits':self.rhitsi, 'sim_lib':'pico_08b_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}
         return ret
 
 

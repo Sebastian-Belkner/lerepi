@@ -26,31 +26,30 @@ fg = '91'
 TEMP =  '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90.91/cILC2021_90b%s_lmax4000/'%fg
 
 
-#TODO
 BMARG_LIBDIR  = '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90b91/' # 095_fgtol1e300/template_matrix' 
 BMARG_LCUT = 200
-BMARG_CENTRALNLEV_UKAMIN = 0.350500 # central pol noise level in map used to build the (TniT) inverse matrix
-THIS_CENTRALNLEV_UKAMIN = 0.42# central pol noise level in this pameter file noise sims. The template matrix willbe rescaled
+BMARG_CENTRALNLEV_UKAMIN = 0.350500 #TODO # central pol noise level in map used to build the (TniT) inverse matrix
+THIS_CENTRALNLEV_UKAMIN = 0.42 #TODO # central pol noise level in this pameter file noise sims. The template matrix willbe rescaled
 
 tniti_rescal = (THIS_CENTRALNLEV_UKAMIN / BMARG_CENTRALNLEV_UKAMIN) ** 2
-nlev_p = 0.42   #NB: cinv_p gives me this value cinv_p::noiseP_uk_arcmin = 0.429
+nlev_p = 0.42  #TODO #NB: cinv_p gives me this value cinv_p::noiseP_uk_arcmin = 0.429
 nlev_t = nlev_p / np.sqrt(2.)
-beam = 2.3
+beam = 2.3 #TODO
 lmax_ivf_qe = 3000
 lmin_ivf_qe = 10
 lmax_qlm = 4096
 lmax_transf = 4000 # can be distinct from lmax_filt for iterations
 lmax_filt = 4096 # unlensed CMB iteration lmax
 nside = 2048
-nsims = 200
-tol=1e-3
+nsims = 100
+tol = 1e-3
 
 # The gradient spectrum seems to saturate with 1e-3 after roughly this number of iteration
 tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
 soltn_cond = lambda itr: True
 
 #---- Redfining opfilt_pp shts to include zbounds
-zbounds = sims_08b.get_zbounds(np.inf)
+zbounds = sims_90.get_zbounds(np.inf)
 opfilt_pp.alm2map_spin = lambda *args, **kwargs, :hph.alm2map_spin(*args, **kwargs, zbounds=zbounds)
 opfilt_pp.map2alm_spin = lambda *args, **kwargs, :hph.map2alm_spin(*args, **kwargs, zbounds=zbounds)
 
@@ -59,7 +58,7 @@ zbounds_len = [np.cos(np.arccos(zbounds[0]) + 5. / 180 * np.pi), np.cos(np.arcco
 zbounds_len[0] = max(zbounds_len[0], -1.)
 zbounds_len[1] = min(zbounds_len[1],  1.)
 #-- Add 5 degress to mask pbounds
-pbounds_len = np.array((113.20399439681668, 326.79600560318335)) #hardcoded
+pbounds_len = np.array((113.20399439681668, 326.79600560318335)) #TODO #hardcoded
 
 
 # --- masks: here we test apodized at ratio 10 and weightmap
@@ -67,15 +66,14 @@ if not os.path.exists(TEMP):
     os.makedirs(TEMP)
 ivmap_path = os.path.join(TEMP, 'ipvmap.fits')
 if not os.path.exists(ivmap_path):
-    rhits = np.nan_to_num(hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08b/rhits/n2048.fits'))
+    rhits = np.ones(shape=(hp.nside2npix(nside)))
     pixlev = THIS_CENTRALNLEV_UKAMIN / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.)
     print("Pmap center pixel pol noise level: %.2f"%(pixlev * np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60.))
     hp.write_map(ivmap_path,  1./ pixlev ** 2 * rhits)
 ivmat_path = os.path.join(TEMP, 'itvmap.fits')
 if not os.path.exists(ivmat_path):
-    pixlev= 0.27 * np.sqrt(2) / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.)
-    rhits = np.nan_to_num(hp.read_map('/project/projectdirs/cmbs4/awg/lowellbb/expt_xx/08b/rhits/n2048.fits'))
-    rhits = np.where(rhits > 0., rhits, 0.)  # *(~np.isnan(rhits))
+    pixlev = 0.27 * np.sqrt(2) / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.) #TODO
+    rhits = np.ones(shape=(hp.nside2npix(nside)))
     print("Pmap center pixel T noise level: %.2f"%(pixlev * np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60.))
     hp.write_map(ivmat_path,  1./ pixlev ** 2 * rhits)
 
@@ -86,7 +84,7 @@ cls_grad = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_gradlensedCls
 cls_weights_qe =  utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 
 transf = hp.gauss_beam(beam / 180. / 60. * np.pi, lmax=lmax_transf)
-sims = sims_90.caterinaILC_May12(fg)
+sims = sims_90.ILC_Clem_Nov21(fg)
 #sims_cmb = sims_06b.simlib_cmbonly(freq)
 
 #------- For sep_TP
