@@ -1,4 +1,4 @@
-"""Iterative reconstruction for s06b fg 00, using Caterina ILC maps
+"""Iterative reconstruction for 90b91
 
 
 
@@ -21,12 +21,16 @@ from itercurv.filt import utils_cinv_p
 from itercurv.remapping.utils import alm_copy
 from lerepi import sims_90
 
-
 fg = '91'
-TEMP =  '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90.91/cILC2021_90b%s_lmax4000/'%fg
+nside_data = 512
+sims = sims_90.ILC_Matthieu_Dec21
+# sims = sims_90.ILC_Seb_Nov21(fg, nside_data)
+# sims_90.ILC_Matthieu_Dec21
+# sims_90.ILC_Pico_2018
 
+TEMP =  '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90b91/cILC2021_90b%s'%fg+'_lmax4000/Seb%04d/'%nside_data
 
-BMARG_LIBDIR  = '/global/cscratch1/sd/sebibel/lerepi/temp/pico/90b91/' # 095_fgtol1e300/template_matrix' 
+BMARG_LIBDIR  = '/global/project/projectdirs/cmbs4/awg/lowellbb/reanalysis/mapphi_intermediate/s08b/' # 095_fgtol1e300/template_matrix' 
 BMARG_LCUT = 200
 BMARG_CENTRALNLEV_UKAMIN = 0.350500 #TODO # central pol noise level in map used to build the (TniT) inverse matrix
 THIS_CENTRALNLEV_UKAMIN = 0.42 #TODO # central pol noise level in this pameter file noise sims. The template matrix willbe rescaled
@@ -41,15 +45,17 @@ lmax_qlm = 4096
 lmax_transf = 4000 # can be distinct from lmax_filt for iterations
 lmax_filt = 4096 # unlensed CMB iteration lmax
 nside = 2048
-nsims = 100
+nsims = 10
 tol = 1e-3
 
 # The gradient spectrum seems to saturate with 1e-3 after roughly this number of iteration
 tol_iter = lambda itr : 1e-3 if itr <= 10 else 1e-4
 soltn_cond = lambda itr: True
 
+rhits = np.ones(shape=(hp.nside2npix(nside)))
 #---- Redfining opfilt_pp shts to include zbounds
-zbounds = sims_90.get_zbounds(np.inf)
+
+zbounds = sims_90.get_zbounds(rhits, np.inf)
 opfilt_pp.alm2map_spin = lambda *args, **kwargs, :hph.alm2map_spin(*args, **kwargs, zbounds=zbounds)
 opfilt_pp.map2alm_spin = lambda *args, **kwargs, :hph.map2alm_spin(*args, **kwargs, zbounds=zbounds)
 
@@ -60,20 +66,17 @@ zbounds_len[1] = min(zbounds_len[1],  1.)
 #-- Add 5 degress to mask pbounds
 pbounds_len = np.array((113.20399439681668, 326.79600560318335)) #TODO #hardcoded
 
-
 # --- masks: here we test apodized at ratio 10 and weightmap
 if not os.path.exists(TEMP):
     os.makedirs(TEMP)
 ivmap_path = os.path.join(TEMP, 'ipvmap.fits')
 if not os.path.exists(ivmap_path):
-    rhits = np.ones(shape=(hp.nside2npix(nside)))
     pixlev = THIS_CENTRALNLEV_UKAMIN / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.)
     print("Pmap center pixel pol noise level: %.2f"%(pixlev * np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60.))
     hp.write_map(ivmap_path,  1./ pixlev ** 2 * rhits)
 ivmat_path = os.path.join(TEMP, 'itvmap.fits')
 if not os.path.exists(ivmat_path):
     pixlev = 0.27 * np.sqrt(2) / (np.sqrt(hp.nside2pixarea(2048, degrees=True)) * 60.) #TODO
-    rhits = np.ones(shape=(hp.nside2npix(nside)))
     print("Pmap center pixel T noise level: %.2f"%(pixlev * np.sqrt(hp.nside2pixarea(nside, degrees=True)) * 60.))
     hp.write_map(ivmat_path,  1./ pixlev ** 2 * rhits)
 
@@ -84,8 +87,6 @@ cls_grad = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_gradlensedCls
 cls_weights_qe =  utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 
 transf = hp.gauss_beam(beam / 180. / 60. * np.pi, lmax=lmax_transf)
-sims = sims_90.ILC_Clem_Nov21(fg)
-#sims_cmb = sims_06b.simlib_cmbonly(freq)
 
 #------- For sep_TP
 ftl_stp_nocut = utils.cli(cls_len['tt'][:lmax_ivf_qe + 1] + (nlev_t / 60. / 180. * np.pi) ** 2 / transf[:lmax_ivf_qe+1]  ** 2)
@@ -106,6 +107,7 @@ libdir_cinvp = os.path.join(TEMP, 'cinvp')
 libdir_ivfs = os.path.join(TEMP, 'ivfs')
 
 chain_descr = [[0, ["diag_cl"], lmax_ivf_qe, nside, np.inf, tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
+print(chain_descr)
 chain_descr_f = lambda cgtol: [[0, ["diag_cl"], lmax_ivf_qe, nside, np.inf, cgtol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 
 
@@ -129,27 +131,20 @@ ivfs_raw    = ivfs_raw_OBD
 
 
 ivfs_raw_noOBD =  filt_cinv.library_cinv_sepTP(libdir_ivfs, sims, cinv_t, cinv_p_noOBD, cls_len)
-#ivfs_raw_noOBD_cmbonly =  filt_cinv.library_cinv_sepTP(libdir_ivfs.replace('ivfs', 'ivfs_cmbonly'), sims_cmb, cinv_t, cinv_p_noOBD, cls_len)
 
 ivfs_raw_noOBD_1e5 =  filt_cinv.library_cinv_sepTP(libdir_ivfs.replace('ivfs', 'ivfs_1e5'), sims, cinv_t, cinv_p_noOBD_tole5, cls_len)
 ivfs_raw_noOBD_1e4 =  filt_cinv.library_cinv_sepTP(libdir_ivfs.replace('ivfs', 'ivfs_1e4'), sims, cinv_t, cinv_p_noOBD_tole4, cls_len,
                                                    soltn_lib=ivfs_raw_noOBD)
 
-#ivfs_raw_noOBD_1e5_cmbonly =  filt_cinv.library_cinv_sepTP(libdir_ivfs.replace('ivfs', 'ivfs_1e5_cmbonly'), sims_cmb, cinv_t, cinv_p_noOBD_tole5, cls_len)
-#ivfs_raw_noOBD_1e4_cmbonly =  filt_cinv.library_cinv_sepTP(libdir_ivfs.replace('ivfs', 'ivfs_1e4_cmbonly'), sims_cmb, cinv_t, cinv_p_noOBD_tole4, cls_len,
-#                                                soltn_lib=ivfs_raw_noOBD_cmbonly)
-
 
 ivfs_OBD   = filt_util.library_ftl(ivfs_raw_OBD, lmax_ivf_qe, filt_t, filt_e, filt_b)
 ivfs   = filt_util.library_ftl(ivfs_raw, lmax_ivf_qe, filt_t, filt_e, filt_b)
 
-#ivfs_OBD_cmbonly   = filt_util.library_ftl(ivfs_raw_OBD_cmbonly, lmax_ivf_qe, filt_t, filt_e, filt_b)
 
 # Shuffling dictionary used for qlms_ss. This remaps idx -> idx + 1 by blocks of 10 up to 300:
 ss_dict = { k : int(v) for k, v in zip( np.concatenate( [ range(i*10, (i+1)*10) for i in range(0,30) ] ),
                     np.concatenate( [ np.roll( range(i*10, (i+1)*10), -1 ) for i in range(0,30) ] ) ) }
 ivfs_s = filt_util.library_shuffle(ivfs, ss_dict)
-#ivfs_s_cmb = filt_util.library_shuffle(ivfs_cmb, ss_dict)
 
 #-----: This is a filtering instance shuffling simulation indices according to 'ss_dict'.
 ddresp = qresp.resp_lib_simple(os.path.join(TEMP, 'qresp_dd_stp'), lmax_ivf_qe, cls_weights_qe, cls_grad, {'tt':ftl_stp.copy(), 'ee':fel_stp.copy(),'bb':fbl_stp.copy()}, lmax_qlm)
@@ -158,8 +153,6 @@ ddresp = qresp.resp_lib_simple(os.path.join(TEMP, 'qresp_dd_stp'), lmax_ivf_qe, 
 qlms_dd_OBD = qest.library_sepTP(os.path.join(TEMP, 'qlms_ddOBD'), ivfs_OBD, ivfs_OBD, cls_len['te'], nside,
                                        lmax_qlm=lmax_qlm, resplib=ddresp)
 qlms_dd = qlms_dd_OBD
-#qlms_dd_OBD_cmbonly = qest.library_sepTP(os.path.join(TEMP, 'qlms_ddOBD_cmbonly'), ivfs_OBD_cmbonly, ivfs_OBD_cmbonly, cls_len['te'], nside,
-#                                       lmax_qlm=lmax_qlm, resplib=ddresp)
 
 ivf_libs = [ivfs_OBD]
 qlibs = [qlms_dd]
@@ -171,15 +164,6 @@ qlms_ss= None
 
 qcls_dd, qcls_ds, qcls_ss = (None, None, None)
 
-
-#qlms_ss_stp = qest.library_sepTP(os.path.join(TEMP, 'qlms_ss_stp'), ivfs_stp, ivfs_s, cls_len['te'], nside, lmax_qlm=lmax_qlm)
-#qcls_ss_stp = qecl.library(os.path.join(TEMP, 'qcls_ss_stp'), qlms_ss_stp, qlms_ss_stp, np.array([]))
-
-#-----: CMB-only library
-#qlms_dd_stp_cmb = qest.library_sepTP(os.path.join(TEMP, 'qlms_dd_stp_cmb'), ivfs_stp_cmb, ivfs_stp_cmb, cls_len['te'], nside,
-#                                        lmax_qlm=lmax_qlm, resplib=ddresp_stp)
-#qlms_ss_stp_cmb = qest.library_sepTP(os.path.join(TEMP, 'qlms_ss_stp_cmb'), ivfs_stp_cmb, ivfs_s_cmb, cls_len['te'], nside, lmax_qlm=lmax_qlm)
-#qcls_ss_stp_cmb = qecl.library(os.path.join(TEMP, 'qcls_ss_stp_cmb'), qlms_ss_stp_cmb, qlms_ss_stp_cmb, np.array([]))
 
 def get_itlib(qe_key, DATIDX, cmbonly=False):
     assert not cmbonly
@@ -261,7 +245,7 @@ def get_itlib(qe_key, DATIDX, cmbonly=False):
         dat = sims_cmb.get_sim_pmap(DATIDX)
     else:
         plm0 = hp.almxfl(utils.alm_copy(qlms_dd_OBD.get_sim_qlm(qe_key, DATIDX), lmax=lmax_qlm) - mf0, qnorm * clwf)
-        dat = sims.get_sim_pmap(DATIDX)
+        dat = sims.get_sim_pmap(DATIDX)+sims.get_noise_sim_pmap(DATIDX)
 
     if qe_key == 'p_p':
         pixn_inv = [hp.read_map(ivmap_path)]
