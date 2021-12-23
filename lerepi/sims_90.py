@@ -28,6 +28,7 @@ def get_nlevp(freq):
     }[freq]
 
 def get_zbounds_frommask(mask):
+    from lenscarf import utils_scarf
     nside = hp.npix2nside(mask.size)
     geom = utils_scarf.Geom.get_healpix_geometry(nside)
     anys = np.zeros(geom.get_nrings(), dtype=int)
@@ -123,9 +124,11 @@ class ILC_Matthieu_Dec21:
 
         No power above :math:`\ell = 2000` in these maps
 
+        Units are uK already
+
     """
 
-    def __init__(self, fg, facunits=1e6, rhitsi=True):
+    def __init__(self, fg, facunits=1., rhitsi=False):
         assert fg in ['91']
         self.facunits = facunits
         self.fg = fg

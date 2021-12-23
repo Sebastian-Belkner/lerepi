@@ -99,7 +99,7 @@ sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf_dat, nlev
 sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
 # -------------------------
 
-ivfs   = filt_simple.library_fullsky_sepTP(opj(TEMP, 'ivfs'), sims, nside, transf_d, cls_len, ftl, fel, fbl, cache=False)
+ivfs   = filt_simple.library_fullsky_sepTP(opj(TEMP, 'ivfs'), sims, nside, transf_d, cls_len, ftl, fel, fbl, cache=True)
 
 
 # ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
