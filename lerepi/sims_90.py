@@ -49,9 +49,13 @@ def get_nlev_mask(rhits, ratio):
     return mask
 
 
-#TODO
+def read_map(fn):
+    return fits.open(fn)[0].data
+
 def get_fidcls():
-    assert 0, "To be implemented"
+    """CMBs are the FFP10 ones
+
+    """
     cls_path = os.path.join(os.path.dirname(os.path.abspath(plancklens.__file__)), 'data', 'cls')
     cl_unl = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
     cl_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
@@ -100,7 +104,7 @@ class ILC_Matthieu_18:
 class ILC_Matthieu_Dec21:
     """ILC maps from Mathieu on 90.91 Nov 2021
 
-        These maps are multiplied with the weights used for the ILC #TODO
+        No power above :math:`\ell = 2000` in these maps
 
     """
 
