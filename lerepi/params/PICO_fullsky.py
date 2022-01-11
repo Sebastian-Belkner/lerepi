@@ -86,7 +86,7 @@ fel_unl =  cli(cls_unl['ee'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf_blm ** 2)) * (transf_blm > 0)
 
 # -------------------------
-transf_dat =  sims.get_transf(2000) # (taking here full FFP10 cmb's which are given to 4096)
+#transf_dat =  sims.get_transf(2000)
 
 # Makes the simulation library consistent with the zbounds
 sims_MAP  = sims
@@ -145,7 +145,6 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     ffi = remapping.deflection(lenjob_pbgeometry, lensres, np.zeros_like(plm0), mmax_qlm, tr, tr)
     if k in ['p_p', 'p_eb']:
         wee = k == 'p_p' # keeps or not the EE-like terms in the generalized QEs
-        assert np.all(transf_elm == transf_blm), 'This is not supported by the alm_filter_nlev_wl (but easy to fix)'
         # Here multipole cuts are set by the transfer function (those with 0 are not considered)
         filtr = alm_filter_nlev_wl(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
                                    wee=wee, transf_b=transf_blm, nlev_b=nlev_p)
