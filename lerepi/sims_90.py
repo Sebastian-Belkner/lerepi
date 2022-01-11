@@ -3,10 +3,12 @@
 
 """
 import os
+import lerepi
 import numpy as np
 import plancklens
 from astropy.io import fits
 from plancklens import utils
+from plancklens.sims import phas, planck2018_sims
 import healpy as hp
 
 
@@ -118,6 +120,36 @@ class ILC_Matthieu_18:
         fac = 1. if not self.rhitsi else np.nan_to_num(hp.read_map(self.p2mask))
         return retq * utils.cli(fac), retu * utils.cli(fac)
 
+
+class NILC_idealE:
+    """B-map from NILC together with input E with some Gaussian noise
+
+        Note:
+            This returns harmonic space maps
+
+
+    """
+    def __init__(self):
+
+        self.path_B = '/project/projectdirs/pico/reanalysis/nilc/ns2048/py91_ns2048_%04d/NILC_PICO91_B_reso8acm.fits' # odd is r=0
+        self.ffp10 = planck2018_sims.cmb_len_ffp10()
+        self.clnoise = np.loadtxt(os.path.join(os.path.dirname(lerepi.__file__), 'data', 'NILC_NOISE_PICO91_B_reso8acm_smofit.dat'))
+        self.phas = phas.lib_phas(os.path.join(os.environ['HOME'], 'almphas_lmax%s' % 2000), 1, 2000) # T, Q, and U noise phases
+
+    def hashdict(self):
+        ret = {'p':self.path_B}
+        return ret
+
+    @staticmethod
+    def get_transf(lmax:int):
+        return hp.gauss_beam(8 / 60. / 180 * np.pi, lmax=lmax) * hp.pixwin(2048, lmax=lmax)
+
+    def get_sim_pmap(self, idx):
+        blm = np.nan_to_num(fits.open(self.path_B%idx)[0].data)
+        lmax = hp.Alm.getlmax(blm.size)
+        elm = hp.almxfl(self.ffp10.get_sim_elm(idx), self.get_transf(lmax))
+        elm += hp.almxfl(utils.alm_copy(self.phas.get_sim(idx, 'e'), lmax=lmax), np.sqrt(self.clnoise))
+        return elm, blm
 
 class ILC_Matthieu_Dec21:
     """ILC maps from Mathieu on 90.91 Nov 2021
