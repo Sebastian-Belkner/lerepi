@@ -6,35 +6,37 @@
 
 FIXME's :
     plancklens independent QEs ?
-    degrade method of _wl_ filters
     check of invertibility at very first step
-    mf_resp for EB-like ?
 
-#FIXME: in progress
-        use l-dependent nlevp, nlevb
 """
 import os
 from os.path import join as opj
 import numpy as np
-import healpy as hp
 
 import plancklens
 
-from plancklens import utils, qresp, qest, qecl
+from plancklens import utils, qresp, qest
 from plancklens.qcinv import cd_solve
-from plancklens.sims import maps, phas, planck2018_sims
-from plancklens.filt import filt_simple, filt_util
+from plancklens.filt import filt_simple
 
-from lenscarf import remapping, utils_scarf, utils_sims
+from lenscarf import remapping, utils_scarf
 from lenscarf.iterators import cs_iterator as scarf_iterator, steps
 from lenscarf.utils import cli
-from lenscarf.utils_hp import gauss_beam, almxfl, alm_copy
+from lenscarf.utils_hp import almxfl, alm_copy
 from lenscarf.opfilt.opfilt_iso_ee_wl import alm_filter_nlev_wl
+
+from lerepi import sims_90
+
 
 suffix = 'PICO_idealized' # descriptor to distinguish this parfile from others...
 TEMP =  opj(os.environ['SCRATCH'], 'lenscarfrecs', suffix)
 
-lmax_ivf, mmax_ivf, beam, nlev_t, nlev_p = (2000, 2000, 1., 1., np.sqrt(2.))
+sims      = sims_90.NILC_idealE() # Matthieu NILC B-modes with FFP10 E-modes and Gaussian E-noise
+
+lmax_ivf, mmax_ivf = (2000, 2000)
+
+nlev_p = np.sqrt(sims.clnoise) * (60 * 180 / np.pi) # Here we will use harmonic space iterators with colored noise
+nlev_t = np.sqrt(sims.clnoise) * (60 * 180 / np.pi) / np.sqrt(2.) # irrelevant
 
 lmin_tlm, lmin_elm, lmin_blm = (30, 10, 200) # The fiducial transfer functions are set to zero below these lmins
 # for delensing useful to cut much more B. It can also help since the cg inversion does not have to reconstruct those.
@@ -45,9 +47,6 @@ lmax_unl, mmax_unl = (2500, 2500) # Delensed CMB is reconstructed down to this l
 
 
 #----------------- pixelization and geometry info for the input maps and the MAP pipeline and for lensing operations
-nside = 2048
-zbounds     = (-1.,1.) # colatitude sky cuts for noise variance maps (We could exclude all rings which are completely masked)
-ninvjob_geometry = utils_scarf.Geom.get_healpix_geometry(nside, zbounds=zbounds)
 
 zbounds_len = (-1.,1.) # Outside of these bounds the reconstructed maps are assumed to be zero
 pb_ctr, pb_extent = (0., 2 * np.pi) # Longitude cuts, if any, in the form (center of patch, patch extent)
@@ -60,7 +59,7 @@ mc_sims_mf_it0 = np.array([]) # sims to use to build the very first iteration me
 
 
 # Multigrid chain descriptor
-chain_descrs = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, nside, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
+chain_descrs = lambda lmax_sol, cg_tol : [[0, ["diag_cl"], lmax_sol, 2048, np.inf, cg_tol, cd_solve.tr_cg, cd_solve.cache_mem()]]
 libdir_iterators = lambda qe_key, simidx, version: opj(TEMP,'%s_sim%04d'%(qe_key, simidx) + version)
 #------------------
 
@@ -71,9 +70,9 @@ cls_unl = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
 cls_len = utils.camb_clfile(opj(cls_path, 'FFP10_wdipole_lensedCls.dat'))
 
 # Fiducial model of the transfer function
-transf_tlm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
-transf_elm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
-transf_blm   =  gauss_beam(beam/180 / 60 * np.pi, lmax=lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
+transf_tlm   =  sims.get_transf(lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_tlm)
+transf_elm   =  sims.get_transf(lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_elm)
+transf_blm   =  sims.get_transf(lmax_ivf) * (np.arange(lmax_ivf + 1) >= lmin_blm)
 transf_d = {'t':transf_tlm, 'e':transf_elm, 'b':transf_blm}
 
 # Isotropic approximation to the filtering (used eg for response calculations)
@@ -87,44 +86,14 @@ fel_unl =  cli(cls_unl['ee'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 *
 fbl_unl =  cli(cls_unl['bb'][:lmax_ivf + 1] + (nlev_p / 180 / 60 * np.pi) ** 2 * cli(transf_blm ** 2)) * (transf_blm > 0)
 
 # -------------------------
-# ---- Input simulation libraries. Here we use the NERSC FFP10 CMBs with homogeneous noise and consistent transfer function
-#       We define explictly the phase library such that we can use the same phases for for other purposes in the future as well if needed
-#       I am putting here the phases in the home directory such that they dont get NERSC auto-purged
-pix_phas = phas.pix_lib_phas(opj(os.environ['HOME'], 'pixphas_nside%s'%nside), 3, (hp.nside2npix(nside),)) # T, Q, and U noise phases
-#       actual data transfer function for the sim generation:
-transf_dat =  gauss_beam(beam / 180 / 60 * np.pi, lmax=4096) # (taking here full FFP10 cmb's which are given to 4096)
-sims      = maps.cmb_maps_nlev(planck2018_sims.cmb_len_ffp10(), transf_dat, nlev_t, nlev_p, nside, pix_lib_phas=pix_phas)
+transf_dat =  sims.get_transf(2000) # (taking here full FFP10 cmb's which are given to 4096)
 
 # Makes the simulation library consistent with the zbounds
-sims_MAP  = utils_sims.ztrunc_sims(sims, nside, [zbounds])
+sims_MAP  = sims
 # -------------------------
 
-ivfs   = filt_simple.library_fullsky_sepTP(opj(TEMP, 'ivfs'), sims, nside, transf_d, cls_len, ftl, fel, fbl, cache=True)
-
-
-# ---- QE libraries from plancklens to calculate unnormalized QE (qlms) and their spectra (qcls)
-mc_sims_bias = np.arange(60, dtype=int)
-mc_sims_var  = np.arange(60, 300, dtype=int)
-qlms_dd = qest.library_sepTP(opj(TEMP, 'qlms_dd'), ivfs, ivfs,   cls_len['te'], nside, lmax_qlm=lmax_qlm)
-qcls_dd = qecl.library(opj(TEMP, 'qcls_dd'), qlms_dd, qlms_dd, mc_sims_bias)
-# -------------------------
-# This following block is only necessary if a full, Planck-like QE lensing power spectrum analysis is desired
-# This uses 'ds' and 'ss' QE's, crossing data with sims and sims with other sims.
-
-# This remaps idx -> idx + 1 by blocks of 60 up to 300. This is used to remap the sim indices for the 'MCN0' debiasing term in the QE spectrum
-ss_dict = { k : v for k, v in zip( np.concatenate( [ range(i*60, (i+1)*60) for i in range(0,5) ] ),
-                                   np.concatenate( [ np.roll( range(i*60, (i+1)*60), -1 ) for i in range(0,5) ] ) ) }
-ds_dict = { k : -1 for k in range(300)} # This remap all sim. indices to the data maps to build QEs with always the data in one leg
-
-ivfs_d = filt_util.library_shuffle(ivfs, ds_dict)
-ivfs_s = filt_util.library_shuffle(ivfs, ss_dict)
-
-qlms_ds = qest.library_sepTP(opj(TEMP, 'qlms_ds'), ivfs, ivfs_d, cls_len['te'], nside, lmax_qlm=lmax_qlm)
-qlms_ss = qest.library_sepTP(opj(TEMP, 'qlms_ss'), ivfs, ivfs_s, cls_len['te'], nside, lmax_qlm=lmax_qlm)
-
-qcls_ds = qecl.library(opj(TEMP, 'qcls_ds'), qlms_ds, qlms_ds, np.array([]))  # for QE RDN0 calculations
-qcls_ss = qecl.library(opj(TEMP, 'qcls_ss'), qlms_ss, qlms_ss, np.array([]))  # for QE RDN0 / MCN0 calculations
-# -------------------------
+ivfs   = filt_simple.library_fullsky_alms_sepTP(opj(TEMP, 'ivfs'), sims, transf_d, cls_len, ftl, fel, fbl, cache=True)
+qlms_dd = qest.library_sepTP(opj(TEMP, 'qlms_dd'), ivfs, ivfs,   cls_len['te'], 2048, lmax_qlm=lmax_qlm)
 
 
 def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
@@ -181,11 +150,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         filtr = alm_filter_nlev_wl(nlev_p, ffi, transf_elm, (lmax_unl, mmax_unl), (lmax_ivf, mmax_ivf),
                                    wee=wee, transf_b=transf_blm, nlev_b=nlev_p)
         # dat maps now given in harmonic in this idealized configuration
-        sht_job = utils_scarf.scarfjob()
-        sht_job.set_geometry(ninvjob_geometry)
-        sht_job.set_triangular_alm_info(lmax_ivf,mmax_ivf)
-        sht_job.set_nthreads(tr)
-        datmaps = np.array(sht_job.map2alm_spin(sims_MAP.get_sim_pmap(int(simidx)), 2))
+        datmaps = np.array(sims_MAP.get_sim_pmap(int(simidx)))
     else:
         assert 0
     k_geom = filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
