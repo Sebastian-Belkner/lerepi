@@ -115,6 +115,11 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     cpp = np.copy(cls_unl['pp'][:lmax_qlm + 1])
     cpp[:Lmin] *= 0.
 
+    # overridding stepper:
+    if 'hbump' in version:
+        this_stepper =steps.harmonicbump(lmax_qlm, mmax_qlm)
+    else:
+        this_stepper = stepper
     # QE mean-field fed in as constant piece in the iteration steps:
     mf_sims = np.unique(mc_sims_mf_it0 if not 'noMF' in version else np.array([]))
     mf0 = qlms_dd.get_sim_qlm_mf(k, mf_sims)  # Mean-field to subtract on the first iteration:
@@ -158,7 +163,7 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
     # Sets to zero all L-modes below Lmin in the iterations:
 
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
-            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), stepper
+            plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), this_stepper
             ,mf0=mf0)
     return iterator
 
