@@ -147,7 +147,7 @@ class NILC_idealE:
     def get_sim_pmap(self, idx):
         blm = np.nan_to_num(fits.open(self.path_B%idx)[0].data)
         lmax = hp.Alm.getlmax(blm.size)
-        elm = hp.almxfl(self.ffp10.get_sim_elm(idx), self.get_transf(lmax))
+        elm = hp.almxfl(utils.alm_copy(self.ffp10.get_sim_elm(idx), 2000), self.get_transf(lmax))
         elm += hp.almxfl(utils.alm_copy(self.phas.get_sim(int(idx), 0), lmax=lmax), np.sqrt(self.clnoise))
         return elm, blm
 
