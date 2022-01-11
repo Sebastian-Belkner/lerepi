@@ -27,6 +27,24 @@ def get_nlevp(freq):
         555: 32.4,  666: 125,  799: 740
     }[freq]
 
+def get_zbounds_frommask(mask):
+    from lenscarf import utils_scarf
+    nside = hp.npix2nside(mask.size)
+    geom = utils_scarf.Geom.get_healpix_geometry(nside)
+    anys = np.zeros(geom.get_nrings(), dtype=int)
+    srted = np.argsort(geom.ofs)
+    for i, ir in enumerate(srted):
+         pixs = geom.ofs[ir] + np.arange(geom.nph[ir], dtype=int)
+         anys[i] = np.any(mask[pixs])
+    tsrt = geom.theta[srted]
+    di = np.diff(anys) # a_{i + 1} - a_i
+    zend   = np.cos(tsrt[np.where(di > 0)[0] + 1]) # begin of unmasked area (end of hole)
+    zbegin = np.cos(tsrt[np.where(di < 0)]) # begin of hole
+    if anys[0] == 0: zbegin = np.insert(zbegin, 0, 1.)
+    if anys[-1]== 0: zend = np.append(zend, 1.)
+    assert len(zend) == len(zbegin)
+    return list(zip(np.append(zbegin, -1.), np.insert(zend, 0, 1.)))
+
 
 def get_zbounds(rhits, hits_ratio=np.inf):
     """Cos-tht bounds for thresholded mask
@@ -106,9 +124,11 @@ class ILC_Matthieu_Dec21:
 
         No power above :math:`\ell = 2000` in these maps
 
+        Units are uK already
+
     """
 
-    def __init__(self, fg, facunits=1e6, rhitsi=True):
+    def __init__(self, fg, facunits=1., rhitsi=False):
         assert fg in ['91']
         self.facunits = facunits
         self.fg = fg
@@ -131,6 +151,9 @@ class ILC_Matthieu_Dec21:
         ret = {'rhits':self.rhitsi, 'sim_lib':'pico_08b_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}
         return ret
 
+    @staticmethod
+    def get_transf(lmax:int):
+        return hp.gauss_beam(8 / 60. / 180 * np.pi, lmax=lmax) * hp.pixwin(2048, lmax=lmax)
 
     def get_sim_pmap(self, idx):
         retE = np.nan_to_num(fits.open(self.path%str(int(2*idx+1)))[0].data) * self.facunits
