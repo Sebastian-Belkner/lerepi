@@ -161,10 +161,10 @@ def get_itlib(k:str, simidx:int, version:str, cg_tol:float):
         assert 0
     k_geom = filtr.ffi.geom # Customizable Geometry for position-space operations in calculations of the iterated QEs etc
     # Sets to zero all L-modes below Lmin in the iterations:
-
+    wflm0 = lambda: alm_copy(ivfs.get_sim_emliklm(int(simidx)), None, lmax_ivf, mmax_unl)
     iterator = scarf_iterator.iterator_pertmf(libdir_iterator, 'p', (lmax_qlm, mmax_qlm), datmaps,
             plm0, mf_resp, R_unl, cpp, cls_unl, filtr, k_geom, chain_descrs(lmax_unl, cg_tol), this_stepper
-            ,mf0=mf0)
+            ,mf0=mf0, wflm0=wflm0)
     return iterator
 
 if __name__ == '__main__':
