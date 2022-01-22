@@ -3,10 +3,12 @@
 
 """
 import os
+import lerepi
 import numpy as np
 import plancklens
 from astropy.io import fits
 from plancklens import utils
+from plancklens.sims import phas, planck2018_sims
 import healpy as hp
 
 
@@ -26,6 +28,24 @@ def get_nlevp(freq):
         186: 2.8,  223: 3.2,  268: 2.2,  321: 3.0,  385: 3.2,  462: 6.4, 
         555: 32.4,  666: 125,  799: 740
     }[freq]
+
+def get_zbounds_frommask(mask):
+    from lenscarf import utils_scarf
+    nside = hp.npix2nside(mask.size)
+    geom = utils_scarf.Geom.get_healpix_geometry(nside)
+    anys = np.zeros(geom.get_nrings(), dtype=int)
+    srted = np.argsort(geom.ofs)
+    for i, ir in enumerate(srted):
+         pixs = geom.ofs[ir] + np.arange(geom.nph[ir], dtype=int)
+         anys[i] = np.any(mask[pixs])
+    tsrt = geom.theta[srted]
+    di = np.diff(anys) # a_{i + 1} - a_i
+    zend   = np.cos(tsrt[np.where(di > 0)[0] + 1]) # begin of unmasked area (end of hole)
+    zbegin = np.cos(tsrt[np.where(di < 0)]) # begin of hole
+    if anys[0] == 0: zbegin = np.insert(zbegin, 0, 1.)
+    if anys[-1]== 0: zend = np.append(zend, 1.)
+    assert len(zend) == len(zbegin)
+    return list(zip(np.append(zbegin, -1.), np.insert(zend, 0, 1.)))
 
 
 def get_zbounds(rhits, hits_ratio=np.inf):
@@ -49,9 +69,13 @@ def get_nlev_mask(rhits, ratio):
     return mask
 
 
-#TODO
+def read_map(fn):
+    return fits.open(fn)[0].data
+
 def get_fidcls():
-    assert 0, "To be implemented"
+    """CMBs are the FFP10 ones
+
+    """
     cls_path = os.path.join(os.path.dirname(os.path.abspath(plancklens.__file__)), 'data', 'cls')
     cl_unl = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lenspotentialCls.dat'))
     cl_len = utils.camb_clfile(os.path.join(cls_path, 'FFP10_wdipole_lensedCls.dat'))
@@ -97,14 +121,46 @@ class ILC_Matthieu_18:
         return retq * utils.cli(fac), retu * utils.cli(fac)
 
 
+class NILC_idealE:
+    """B-map from NILC together with input E with some Gaussian noise
+
+        Note:
+            This returns harmonic space maps
+
+
+    """
+    def __init__(self):
+
+        self.path_B = '/project/projectdirs/pico/reanalysis/nilc/ns2048/py91_ns2048_%04d/NILC_PICO91_B_reso8acm.fits' # odd is r=0
+        self.ffp10 = planck2018_sims.cmb_len_ffp10()
+        self.clnoise = np.loadtxt(os.path.join(os.path.dirname(lerepi.__file__), 'data', 'NILC_NOISE_PICO91_B_reso8acm_smofit.dat'))
+        self.phas = phas.lib_phas(os.path.join(os.environ['HOME'], 'almphas_lmax%s' % 2000), 1, 2000) # T, Q, and U noise phases
+
+    def hashdict(self):
+        ret = {'p':self.path_B}
+        return ret
+
+    @staticmethod
+    def get_transf(lmax:int):
+        return hp.gauss_beam(8 / 60. / 180 * np.pi, lmax=lmax) * hp.pixwin(2048, lmax=lmax)
+
+    def get_sim_pmap(self, idx):
+        blm = hp.map2alm(np.nan_to_num(fits.open(self.path_B%idx)[0].data), lmax=2000)
+        lmax = hp.Alm.getlmax(blm.size)
+        elm = hp.almxfl(utils.alm_copy(self.ffp10.get_sim_elm(idx), 2000), self.get_transf(lmax))
+        elm += hp.almxfl(utils.alm_copy(self.phas.get_sim(int(idx), 0), lmax=lmax), np.sqrt(self.clnoise))
+        return elm, blm
+
 class ILC_Matthieu_Dec21:
     """ILC maps from Mathieu on 90.91 Nov 2021
 
-        These maps are multiplied with the weights used for the ILC #TODO
+        No power above :math:`\ell = 2000` in these maps
+
+        Units are uK already
 
     """
 
-    def __init__(self, fg, facunits=1e6, rhitsi=True):
+    def __init__(self, fg, facunits=1., rhitsi=False):
         assert fg in ['91']
         self.facunits = facunits
         self.fg = fg
@@ -127,6 +183,9 @@ class ILC_Matthieu_Dec21:
         ret = {'rhits':self.rhitsi, 'sim_lib':'pico_08b_ILC_%s'%self.fg, 'units':self.facunits, 'path2sim0':self.path%0}
         return ret
 
+    @staticmethod
+    def get_transf(lmax:int):
+        return hp.gauss_beam(8 / 60. / 180 * np.pi, lmax=lmax) * hp.pixwin(2048, lmax=lmax)
 
     def get_sim_pmap(self, idx):
         retE = np.nan_to_num(fits.open(self.path%str(int(2*idx+1)))[0].data) * self.facunits
